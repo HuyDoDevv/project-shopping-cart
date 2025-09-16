@@ -1,0 +1,19 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./internal/db/queries" # parse từng câu query
+    schema: "./internal/db/migrations" # hiểu database có bảng nào, kiểu dữ liệu gì.
+    gen:
+      go:
+        package: "sqlc"
+        out: "./internal/db/sqlc" # generate ra file
+        sql_package: "pgx/v5"
+        emit_json_tags: true # Có hiển thị Tags hay không ví dụ: `json:"user_id"`
+        emit_interface: true # Có tạo ra interface cho model không
+        emit_empty_slices: true # Nếu không có sẽ trả về slice rỗng ví dụ: []models.User{}
+        emit_pointers_for_null_types: true #
+        overrides: # custom lại dữ liệu
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
