@@ -8,6 +8,7 @@ import (
 	"gin/user-management-api/internal/routes"
 	"gin/user-management-api/internal/validation"
 	"gin/user-management-api/pkg/auth"
+	"gin/user-management-api/pkg/cache"
 	"log"
 	"net/http"
 	"os"
@@ -48,7 +49,8 @@ func NewApplication(cfg *config.Config) *Application {
 	}
 
 	redisClinet := config.NewRedisClient()
-	tokenService := auth.NewJWTService()
+	cacheRedisService := cache.NewRedisCacheService(redisClinet)
+	tokenService := auth.NewJWTService(cacheRedisService)
 
 	ctx := &MouldeContext {
 		DB: db.DB,
