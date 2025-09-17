@@ -20,7 +20,6 @@ func NewAuthHandler(service v1service.AuthService) *AuthHandler {
 	}
 }
 
-
 func (ah *AuthHandler) Login(ctx *gin.Context){
 	var input v1dto.LoginInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
@@ -48,6 +47,11 @@ func (ah *AuthHandler) Logout(ctx *gin.Context){
 	var input v1dto.RefreshTokenInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+
+	if err := ah.service.Logout(ctx, input.RefreshToken); err != nil {
+		utils.ResponseError(ctx, err)
 		return
 	}
 

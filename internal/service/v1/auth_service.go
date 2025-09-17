@@ -4,6 +4,9 @@ import (
 	"gin/user-management-api/internal/repository"
 	"gin/user-management-api/internal/utils"
 	"gin/user-management-api/pkg/auth"
+	"gin/user-management-api/pkg/cache"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -14,13 +17,15 @@ import (
 type authService struct {
 	userRepo repository.UserRepository
 	tokenService auth.TokenService
+	cache cache.RedisCacheService
 }
 
 
-func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService) *authService {
+func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService, cache cache.RedisCacheService) *authService {
 	return &authService{
 		userRepo: repo,
 		tokenService: tokenService,
+		cache: cache,
 	}
 }
 
@@ -51,10 +56,6 @@ func (as *authService) Login(ctx *gin.Context, email, password string) (string, 
 	}
 
 	return accessToken, refreshTokenToken.Token, int(auth.AccessTokenTTL.Seconds()), nil
-}
-
-func (as *authService) Logout(ctx *gin.Context) error {
-	return nil
 }
 
 func (as *authService) RefreshToken(ctx *gin.Context, refreshTokenString string) (string, string, int, error) {
@@ -97,4 +98,36 @@ func (as *authService) RefreshToken(ctx *gin.Context, refreshTokenString string)
 	}
 
 	return accessToken, refreshTokenToken.Token, int(auth.AccessTokenTTL.Seconds()), nil
+}
+
+func (as *authService) Logout(ctx *gin.Context, refreshToken string) error {
+	authHeader := ctx.GetHeader("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		return utils.NewError(utils.UnauthorizedError, "Missing Authorization header")
+	}
+
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	_, claims, err := as.tokenService.ParseToken(tokenString)
+	if err != nil {
+		return utils.NewError(utils.UnauthorizedError, "Invalid access token")
+	}
+
+	if jti, ok := claims["jti"].(string); ok {
+		expUnit, _ := claims["exp"].(float64)
+		exp := time.Unix(int64(expUnit), 0)
+		key := "backlist:" + jti
+		ttl := time.Until(exp)
+		as.cache.Set(key, "revoked", ttl)
+	}
+
+	_, err = as.tokenService.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		return utils.NewError(utils.UnauthorizedError, "Refresh token is invalid or revoked")
+	}
+
+	if err := as.tokenService.RevokeRefreshToken(refreshToken); err != nil {
+		return utils.WrapError(utils.InternalServerError, "Invalid access token", err)
+	}
+
+	return nil
 }

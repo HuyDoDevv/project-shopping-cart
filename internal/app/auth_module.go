@@ -7,6 +7,7 @@ import (
 	v1routes "gin/user-management-api/internal/routes/v1"
 	v1service "gin/user-management-api/internal/service/v1"
 	"gin/user-management-api/pkg/auth"
+	"gin/user-management-api/pkg/cache"
 )
 
 
@@ -16,12 +17,12 @@ type AuthModule struct {
 
 }
 
-func NewAuthModule(ctx *MouldeContext, tokenService auth.TokenService) *AuthModule {
+func NewAuthModule(ctx *MouldeContext, tokenService auth.TokenService, cacheService cache.RedisCacheService) *AuthModule {
 	// Initialize the auth repository
 	userRepository := repository.NewSqlUserRepository(ctx.DB)
 
 	// Initialize the auth services
-	authService := v1service.NewAuthService(userRepository, tokenService)
+	authService := v1service.NewAuthService(userRepository, tokenService, cacheService)
 
 	// Initialize the auth handler
 	authHandler := v1handler.NewAuthHandler(authService)

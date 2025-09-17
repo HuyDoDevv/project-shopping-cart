@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"gin/user-management-api/pkg/auth"
+	"gin/user-management-api/pkg/cache"
 	"net/http"
 	"strings"
 
@@ -11,10 +12,12 @@ import (
 
 var (
 	jwtService auth.TokenService
+	cacheService cache.RedisCacheService
 )
 
-func InitAuthMiddleware(service auth.TokenService){
+func InitAuthMiddleware(service auth.TokenService, cache cache.RedisCacheService ){
 	jwtService = service
+	cacheService = cache
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -28,12 +31,23 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		_, _, err := jwtService.ParseToken(tokenString)
+		_, claims, err := jwtService.ParseToken(tokenString)
 		if err != nil {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Authorization header missing of invalid",
 			})
 			return
+		}
+
+		if jti, ok := claims["jti"].(string); ok {
+			key := "backlist:" + jti
+			extists, err := cacheService.Exited(key)
+			if err == nil && extists {
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+					"error": "Token revoked",
+				})
+				return
+			}
 		}
 
 		payload, err := jwtService.DecryptAccessTokenPayload(tokenString)

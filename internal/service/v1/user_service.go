@@ -22,7 +22,7 @@ import (
 
 type userService struct {
 	repository repository.UserRepository
-	cache *cache.RedisCacheService
+	cache cache.RedisCacheService
 }
 
 
