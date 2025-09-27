@@ -13,7 +13,14 @@ exportdb:
 
 # Run Server
 server:
-	cd cmd/api && go run .
+	go run ./cmd/api
+
+run-binary:
+	./bin/myapp
+
+# build binary
+build:
+	go build -o bin/myapp ./cmd/api
 
 # generate sqlc
 sqlc:
@@ -39,4 +46,4 @@ migrate-drop:
 migrate-goto:
 	migrate -path $(MIGRATION_DIRS) -database "$(PATH_DB)" goto $(VERSION)
 
-.PHONY: importdb exportdb server migrate-create migrate-up migrate-down migrate-force migrate-drop migrate-goto sqlc
+.PHONY: importdb exportdb server migrate-create migrate-up migrate-down migrate-force migrate-drop migrate-goto sqlc build run-binary
