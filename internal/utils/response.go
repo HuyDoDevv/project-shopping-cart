@@ -6,39 +6,38 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type ErrorCode string
 
 const (
-	NotFoundError ErrorCode = "NOT_FOUND"
-	InternalServerError ErrorCode = "INTERNAL_SERVER_ERROR"
-	BadRequestError ErrorCode = "BAD_REQUEST"
-	UnauthorizedError ErrorCode = "UNAUTHORIZED"
-	ForbiddenError ErrorCode = "FORBIDDEN"
-	ConflictError ErrorCode = "CONFLICT"
+	NotFoundError        ErrorCode = "NOT_FOUND"
+	InternalServerError  ErrorCode = "INTERNAL_SERVER_ERROR"
+	BadRequestError      ErrorCode = "BAD_REQUEST"
+	UnauthorizedError    ErrorCode = "UNAUTHORIZED"
+	ForbiddenError       ErrorCode = "FORBIDDEN"
+	ConflictError        ErrorCode = "CONFLICT"
+	TooManyRequestsError ErrorCode = "TOO_MANY_REQUESTS"
 )
 
 type AppError struct {
 	Message string
-	Code ErrorCode
-	Err error
+	Code    ErrorCode
+	Err     error
 }
 
 type APIResponse struct {
-	Status string 	`json:"status"`
-	Message string 	`json:"message,omitempty"`
-	Data any 				`json:"data,omitempty"`
-	Pagination any 	`json:"pagination,omitempty"`
+	Status     string `json:"status"`
+	Message    string `json:"message,omitempty"`
+	Data       any    `json:"data,omitempty"`
+	Pagination any    `json:"pagination,omitempty"`
 }
 
 func (e *AppError) Error() string {
 	return e.Message
 }
 
-
 func NewError(code ErrorCode, message string) error {
 	return &AppError{
-		Code: code,
+		Code:    code,
 		Message: message,
 	}
 }
@@ -48,9 +47,9 @@ func WrapError(code ErrorCode, message string, err error) error {
 		return nil
 	}
 	return &AppError{
-		Code: code,
+		Code:    code,
 		Message: message,
-		Err: err,
+		Err:     err,
 	}
 }
 
@@ -66,13 +65,13 @@ func ResponseError(ctx *gin.Context, err error) {
 	}
 	ctx.JSON(http.StatusInternalServerError, gin.H{
 		"error": err.Error(),
-		"code": InternalServerError,
+		"code":  InternalServerError,
 	})
 }
 
 func ResponseSuccess(ctx *gin.Context, status int, message string, data ...any) {
 	resp := APIResponse{
-		Status: "success",
+		Status:  "success",
 		Message: CapitalizrFirst(message),
 	}
 
@@ -84,18 +83,18 @@ func ResponseSuccess(ctx *gin.Context, status int, message string, data ...any) 
 
 			if d, exitsts := m["data"]; exitsts {
 				resp.Data = d
-			}else {
+			} else {
 				resp.Data = m
 			}
-		}else {
+		} else {
 			resp.Data = data[0]
 		}
 	}
 	ctx.JSON(status, resp)
 }
 
-func ResponseStatusCode(ctx * gin.Context, status int) {
-		ctx.Status(status)
+func ResponseStatusCode(ctx *gin.Context, status int) {
+	ctx.Status(status)
 }
 
 func ResponseValidation(ctx *gin.Context, data any) {
@@ -116,6 +115,8 @@ func httpStatusFromErrorCode(code ErrorCode) int {
 		return http.StatusForbidden
 	case ConflictError:
 		return http.StatusConflict
+	case TooManyRequestsError:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}
