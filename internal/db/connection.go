@@ -23,13 +23,13 @@ func InitDB() error {
 	conf, err := pgxpool.ParseConfig(conStr)
 
 	if err != nil {
-		return	fmt.Errorf("error passing DB config: %v", err)
+		return fmt.Errorf("error passing DB config: %v", err)
 	}
 
-	sqlLogger := utils.NewLoggerWithPath("../../internal/logs/slq.log", "info")
+	sqlLogger := utils.NewLoggerWithPath("slq.log", "info")
 	conf.ConnConfig.Tracer = &tracelog.TraceLog{
 		Logger: &pgx.PgxZeroLogTracer{
-			Logger: *sqlLogger,
+			Logger:         *sqlLogger,
 			SlowQueryLimit: 500 * time.Microsecond,
 		},
 		LogLevel: tracelog.LogLevelDebug,
@@ -41,7 +41,7 @@ func InitDB() error {
 	conf.MaxConnIdleTime = 5 * time.Minute
 	conf.HealthCheckPeriod = 1 * time.Minute
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	DBpool, err = pgxpool.NewWithConfig(ctx, conf)
@@ -58,5 +58,5 @@ func InitDB() error {
 
 	log.Println("Connected")
 
-	return  nil
+	return nil
 }

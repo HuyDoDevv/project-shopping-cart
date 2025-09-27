@@ -11,25 +11,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type Route interface {
 	Register(r *gin.RouterGroup)
 }
 
-
 func RegisterRoutes(r *gin.Engine, authService auth.TokenService, cacheService cache.RedisCacheService, routes ...Route) {
-	httpLogger := utils.NewLoggerWithPath("../../internal/logs/http.log", "info")
-	recoveryLogger := utils.NewLoggerWithPath("../../internal/logs/recovery.log", "warning")
-	rateLimiterLogger := utils.NewLoggerWithPath("../../internal/logs/rate_limiter.log", "warning")
+	httpLogger := utils.NewLoggerWithPath("http.log", "info")
+	recoveryLogger := utils.NewLoggerWithPath("recovery.log", "warning")
+	rateLimiterLogger := utils.NewLoggerWithPath("rate_limiter.log", "warning")
 
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
 	r.Use(
-				middleware.RateLimiterMiddleware(rateLimiterLogger),
-				middleware.TraceMiddleware(),
-				middleware.LoggerMiddleware(httpLogger),
-				middleware.RecoveryMiddleware(recoveryLogger),
-				middleware.ApiKeyMiddleware(),
-			)
+		middleware.RateLimiterMiddleware(rateLimiterLogger),
+		middleware.TraceMiddleware(),
+		middleware.LoggerMiddleware(httpLogger),
+		middleware.RecoveryMiddleware(recoveryLogger),
+		middleware.ApiKeyMiddleware(),
+	)
 	v1api := r.Group("/api/v1")
 
 	middleware.InitAuthMiddleware(authService, cacheService)
@@ -51,7 +49,7 @@ func RegisterRoutes(r *gin.Engine, authService auth.TokenService, cacheService c
 	r.NoRoute(func(ctx *gin.Context) {
 		ctx.JSON(404, gin.H{
 			"error": "Not found",
-			"path": ctx.Request.URL.Path,
+			"path":  ctx.Request.URL.Path,
 		})
 	})
 }

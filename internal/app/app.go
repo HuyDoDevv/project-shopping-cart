@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -26,18 +25,17 @@ type Module interface {
 }
 
 type Application struct {
-	config *config.Config
-	routes *gin.Engine
+	config  *config.Config
+	routes  *gin.Engine
 	modules []Module
 }
 
 type MouldeContext struct {
-	DB sqlc.Querier
+	DB    sqlc.Querier
 	Redis *redis.Client
 }
 
 func NewApplication(cfg *config.Config) *Application {
-	LoadEnv()
 	if err := validation.InitValidator(); err != nil {
 		log.Fatalf("Failed to initialize validator: %v", err)
 	}
@@ -52,8 +50,8 @@ func NewApplication(cfg *config.Config) *Application {
 	cacheRedisService := cache.NewRedisCacheService(redisClinet)
 	tokenService := auth.NewJWTService(cacheRedisService)
 
-	ctx := &MouldeContext {
-		DB: db.DB,
+	ctx := &MouldeContext{
+		DB:    db.DB,
 		Redis: redisClinet,
 	}
 
@@ -65,19 +63,19 @@ func NewApplication(cfg *config.Config) *Application {
 	routes.RegisterRoutes(r, tokenService, cacheRedisService, getModlRoutes(models)...)
 
 	return &Application{
-		config: cfg,
-		routes: r,
+		config:  cfg,
+		routes:  r,
 		modules: models,
 	}
 }
 
 func (app *Application) Run() error {
 	srv := &http.Server{
-		Addr: app.config.ServerAddress,
+		Addr:    app.config.ServerAddress,
 		Handler: app.routes,
 	}
 
-	quit := make(chan os.Signal,1)
+	quit := make(chan os.Signal, 1)
 
 	// syscall.SIGINT -> ctrl + c
 	// syscall.SIGTERM -> kill service
@@ -91,9 +89,9 @@ func (app *Application) Run() error {
 		}
 	}()
 
-	<- quit
+	<-quit
 	log.Println("Shutdown signal received.....")
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
@@ -110,11 +108,4 @@ func getModlRoutes(modules []Module) []routes.Route {
 		routeList[i] = module.Routes()
 	}
 	return routeList
-}
-
-func LoadEnv() {
-	err := godotenv.Load("../../.env")
-	if err != nil {
-		log.Println("No .env file found")
-	}
 }
