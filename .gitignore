@@ -2,3 +2,5 @@
 /.env
 /temp.go
 /temp.txt
+/.air.toml
+/tmp

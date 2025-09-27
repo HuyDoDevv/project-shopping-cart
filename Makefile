@@ -2,6 +2,10 @@ include .env
 export
 PATH_DB = postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)
 MIGRATION_DIRS = internal/db/migrations
+ENV_FILE=.env
+PROD_COMPOSE=docker-compose.prod.yml
+NOAPP_COMPOSE=docker-compose.noapp.yml
+DEV_COMPOSE=docker-compose.dev.yml
 
 # Import DB
 importdb:
@@ -46,4 +50,31 @@ migrate-drop:
 migrate-goto:
 	migrate -path $(MIGRATION_DIRS) -database "$(PATH_DB)" goto $(VERSION)
 
-.PHONY: importdb exportdb server migrate-create migrate-up migrate-down migrate-force migrate-drop migrate-goto sqlc build run-binary
+noapp:
+	docker compose -f $(NOAPP_COMPOSE) down
+	docker compose -f $(NOAPP_COMPOSE) --env-file $(ENV_FILE) up -d --build
+
+stop-noapp:
+	docker compose -f $(NOAPP_COMPOSE) down
+
+dev:
+	docker compose -f $(DEV_COMPOSE) down
+	docker compose -f $(DEV_COMPOSE) --env-file $(ENV_FILE) up --build
+
+stop-dev:
+	docker compose -f $(DEV_COMPOSE) down
+
+prod:
+	docker compose -f $(PROD_COMPOSE) down
+	docker compose -f $(PROD_COMPOSE) --env-file $(ENV_FILE) up -d --build
+
+stop-prod:
+	docker compose -f $(PROD_COMPOSE) down
+
+logs-prod:
+	docker compose -f $(PROD_COMPOSE) logs -f --tail=100
+
+bash:
+	docker exec -it golang-api /bin/sh
+
+.PHONY: importdb exportdb server migrate-create migrate-up migrate-down migrate-force migrate-drop migrate-goto sqlc build run-binary prod stop-prod logs-prod bash noapp stop-noapp dev stop-dev

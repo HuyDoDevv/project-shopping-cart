@@ -46,7 +46,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: golang-api
     restart: unless-stopped
     env_file:
@@ -54,7 +54,7 @@ services:
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     volumes:
-      - ./internal/logs:/app/internal/logs
+      - ./:/app
     depends_on:
       db:
         condition: service_healthy
