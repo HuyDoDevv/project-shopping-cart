@@ -6,10 +6,12 @@ import (
 	"gin/user-management-api/internal/db"
 	"gin/user-management-api/internal/db/sqlc"
 	"gin/user-management-api/internal/routes"
+	"gin/user-management-api/internal/utils"
 	"gin/user-management-api/internal/validation"
 	"gin/user-management-api/pkg/auth"
 	"gin/user-management-api/pkg/cache"
 	"gin/user-management-api/pkg/loggers"
+	"gin/user-management-api/pkg/mail"
 	"net/http"
 	"os"
 	"os/signal"
@@ -50,6 +52,17 @@ func NewApplication(cfg *config.Config) *Application {
 	cacheRedisService := cache.NewRedisCacheService(redisClinet)
 	tokenService := auth.NewJWTService(cacheRedisService)
 
+	mailLogger := utils.NewLoggerWithPath("mail.log", "info")
+	factory, err := mail.NewProviderFactory(mail.ProviderMailtrap)
+	if err != nil {
+		mailLogger.Error().Err(err).Msg("Failed to create mail provider factory")
+	}
+
+	mailService, err := mail.NewMailService(cfg, mailLogger, factory)
+	if err != nil {
+		mailLogger.Error().Err(err).Msg("Failed to initializa mail service")
+	}
+
 	ctx := &MouldeContext{
 		DB:    db.DB,
 		Redis: redisClinet,
@@ -57,7 +70,7 @@ func NewApplication(cfg *config.Config) *Application {
 
 	models := []Module{
 		NewUserModule(ctx),
-		NewAuthModule(ctx, tokenService, cacheRedisService),
+		NewAuthModule(ctx, tokenService, cacheRedisService, mailService),
 	}
 
 	routes.RegisterRoutes(r, tokenService, cacheRedisService, getModlRoutes(models)...)

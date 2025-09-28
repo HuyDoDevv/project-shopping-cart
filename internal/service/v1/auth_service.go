@@ -8,6 +8,7 @@ import (
 	"gin/user-management-api/pkg/auth"
 	"gin/user-management-api/pkg/cache"
 	"gin/user-management-api/pkg/loggers"
+	"gin/user-management-api/pkg/mail"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type authService struct {
 	userRepo     repository.UserRepository
 	tokenService auth.TokenService
 	cacheService cache.RedisCacheService
+	mailService  mail.EmailProviderService
 }
 
 type LoginAttempt struct {
@@ -37,11 +39,12 @@ var (
 	MaxLoginAttempt = 5
 )
 
-func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService, cacheService cache.RedisCacheService) *authService {
+func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService, cacheService cache.RedisCacheService, mailService mail.EmailProviderService) *authService {
 	return &authService{
 		userRepo:     repo,
 		tokenService: tokenService,
 		cacheService: cacheService,
+		mailService:  mailService,
 	}
 }
 
@@ -219,8 +222,20 @@ func (as *authService) RequestForgotPassword(ctx *gin.Context, email string) err
 	if err := as.cacheService.Set(rateLimitKey, "1", 10*time.Minute); err != nil {
 		return utils.NewError(utils.InternalServerError, "Failed to store rate limit reset password")
 	}
+
 	resetLink := fmt.Sprintf("view-to-reset-password?token=%s", token)
 	loggers.Log.Info().Msg(resetLink)
+	mailContent := &mail.Email{
+		To: []mail.Address{
+			{Email: email},
+		},
+		Subject: "Password Reset Request",
+		Text:    fmt.Sprintf("Hi %s, \n\n You requested to reset your password. Please click the link below to reset it: \n%s\n\n The link will expire in 1 hour. \n\n Best regard, \n Code With HuyDo", user.UserEmail, resetLink),
+	}
+
+	if err := as.mailService.SendMail(ctx, mailContent); err != nil {
+		utils.NewError(utils.InternalServerError, "Failed to send password reset email")
+	}
 	return nil
 }
 
