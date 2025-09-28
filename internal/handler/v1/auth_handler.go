@@ -20,7 +20,7 @@ func NewAuthHandler(service v1service.AuthService) *AuthHandler {
 	}
 }
 
-func (ah *AuthHandler) Login(ctx *gin.Context){
+func (ah *AuthHandler) Login(ctx *gin.Context) {
 	var input v1dto.LoginInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
@@ -30,20 +30,20 @@ func (ah *AuthHandler) Login(ctx *gin.Context){
 	accessToken, refreshToken, expiresIn, err := ah.service.Login(ctx, input.Email, input.Password)
 
 	if err != nil {
-		utils.ResponseError(ctx,err)
+		utils.ResponseError(ctx, err)
 		return
 	}
 
-	response := v1dto.LoginResponse {
-		AccessToken: accessToken,
+	response := v1dto.LoginResponse{
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn: expiresIn,
+		ExpiresIn:    expiresIn,
 	}
 
 	utils.ResponseSuccess(ctx, http.StatusOK, "Login successfully", response)
 }
 
-func (ah *AuthHandler) Logout(ctx *gin.Context){
+func (ah *AuthHandler) Logout(ctx *gin.Context) {
 	var input v1dto.RefreshTokenInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
@@ -58,8 +58,7 @@ func (ah *AuthHandler) Logout(ctx *gin.Context){
 	utils.ResponseSuccess(ctx, http.StatusOK, "Logout successfully")
 }
 
-
-func (ah *AuthHandler) RefreshToken(ctx *gin.Context){
+func (ah *AuthHandler) RefreshToken(ctx *gin.Context) {
 	var input v1dto.RefreshTokenInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
 		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
@@ -69,15 +68,44 @@ func (ah *AuthHandler) RefreshToken(ctx *gin.Context){
 	accessToken, refreshToken, expiresIn, err := ah.service.RefreshToken(ctx, input.RefreshToken)
 
 	if err != nil {
-		utils.ResponseError(ctx,err)
+		utils.ResponseError(ctx, err)
 		return
 	}
 
-	response := v1dto.LoginResponse {
-		AccessToken: accessToken,
+	response := v1dto.LoginResponse{
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		ExpiresIn: expiresIn,
+		ExpiresIn:    expiresIn,
 	}
 
 	utils.ResponseSuccess(ctx, http.StatusOK, "Refresh Token successfully", response)
+}
+
+func (ah *AuthHandler) RequestForgotPassword(ctx *gin.Context) {
+	var input v1dto.RequestPasswordInput
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+
+	if err := ah.service.RequestForgotPassword(ctx, input.Email); err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+	utils.ResponseSuccess(ctx, http.StatusOK, "Reset link sent to email")
+}
+
+func (ah *AuthHandler) ResetPassword(ctx *gin.Context) {
+	var input v1dto.ResetPasswordInput
+	if err := ctx.ShouldBindJSON(&input); err != nil {
+		utils.ResponseValidation(ctx, validation.HandleValidationErrors(err))
+		return
+	}
+
+	if err := ah.service.ResetPassword(ctx, input.Token, input.NewPassword); err != nil {
+		utils.ResponseError(ctx, err)
+		return
+	}
+
+	utils.ResponseSuccess(ctx, http.StatusOK, "Password reset successfully")
 }

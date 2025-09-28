@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-
 type AuthRoutes struct {
 	handler *v1handler.AuthHandler
 }
@@ -23,5 +22,7 @@ func (ar *AuthRoutes) Register(r *gin.RouterGroup) {
 		auth.POST("/login", ar.handler.Login)
 		auth.POST("/logout", ar.handler.Logout)
 		auth.POST("/resfresh", ar.handler.RefreshToken)
+		auth.POST("/forgot-password", ar.handler.RequestForgotPassword)
+		auth.POST("/reset-password", ar.handler.ResetPassword)
 	}
 }
