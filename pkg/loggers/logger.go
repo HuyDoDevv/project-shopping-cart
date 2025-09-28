@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/natefinch/lumberjack"
@@ -13,16 +14,23 @@ import (
 )
 
 type contextKey string
+
 const TraceIdKey contextKey = "trace_id"
 
+var Log *zerolog.Logger
+
 type LoggerConfig struct {
-	Level string
-	Filename string
-	MaxSize	int
+	Level      string
+	Filename   string
+	MaxSize    int
 	MaxBackups int
-	MaxAge int
-	Compress bool
-	IsDev string
+	MaxAge     int
+	Compress   bool
+	IsDev      string
+}
+
+func InitLogger(config LoggerConfig) {
+	Log = NewLogger(config)
 }
 
 func NewLogger(config LoggerConfig) *zerolog.Logger {
@@ -37,8 +45,12 @@ func NewLogger(config LoggerConfig) *zerolog.Logger {
 	var writer io.Writer
 
 	if config.IsDev == "development" {
-		writer = PrettyJSONWriter{Writer: os.Stdout}
-	}else {
+		if strings.Contains(config.Filename, "app.log") {
+			writer = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}
+		} else {
+			writer = PrettyJSONWriter{Writer: os.Stdout}
+		}
+	} else {
 		writer = &lumberjack.Logger{
 			Filename:   config.Filename,
 			MaxSize:    config.MaxSize,
@@ -59,7 +71,7 @@ type PrettyJSONWriter struct {
 func (w PrettyJSONWriter) Write(p []byte) (n int, err error) {
 	var prettyJSON bytes.Buffer
 
-	err = json.Indent(&prettyJSON, p, "","  ")
+	err = json.Indent(&prettyJSON, p, "", "  ")
 	if err != nil {
 		return w.Writer.Write(p)
 	}
@@ -68,7 +80,7 @@ func (w PrettyJSONWriter) Write(p []byte) (n int, err error) {
 
 func GetTraceID(ctx context.Context) string {
 	if traceId, ok := ctx.Value(TraceIdKey).(string); ok {
-		return  traceId
+		return traceId
 	}
 	return ""
 }

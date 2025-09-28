@@ -34,7 +34,7 @@ func GetIntEnv(key string, defaulValue int) int {
 func NewLoggerWithPath(fileName string, level string) *zerolog.Logger {
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatal("Unable to get working dif", err)
+		log.Fatal("Unable to get working dir", err)
 	}
 	path := filepath.Join(cwd, "internal/logs", fileName)
 	config := loggers.LoggerConfig{

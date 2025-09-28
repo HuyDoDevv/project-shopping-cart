@@ -9,7 +9,7 @@ import (
 	"gin/user-management-api/internal/validation"
 	"gin/user-management-api/pkg/auth"
 	"gin/user-management-api/pkg/cache"
-	"log"
+	"gin/user-management-api/pkg/loggers"
 	"net/http"
 	"os"
 	"os/signal"
@@ -37,13 +37,13 @@ type MouldeContext struct {
 
 func NewApplication(cfg *config.Config) *Application {
 	if err := validation.InitValidator(); err != nil {
-		log.Fatalf("Failed to initialize validator: %v", err)
+		loggers.Log.Fatal().Err(err).Msg("Failed to initialize validator")
 	}
 
 	r := gin.Default()
 
 	if err := db.InitDB(); err != nil {
-		log.Fatalf("Database init failed: %v", err)
+		loggers.Log.Fatal().Err(err).Msg("Database init failed")
 	}
 
 	redisClinet := config.NewRedisClient()
@@ -83,22 +83,21 @@ func (app *Application) Run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
 	go func() {
-		log.Printf("Server is running at %s \n", app.config.ServerAddress)
+		loggers.Log.Info().Msgf("Server is running at %s \n", app.config.ServerAddress)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			loggers.Log.Fatal().Err(err).Msg("Failed to start server")
 		}
 	}()
 
 	<-quit
-	log.Println("Shutdown signal received.....")
+	loggers.Log.Warn().Msg("Shutdown signal received.....")
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server corced to shutdown: %v", err)
+		loggers.Log.Fatal().Err(err).Msg("Server corced to shutdown")
 	}
-
-	log.Println("Server exited gracefully")
+	loggers.Log.Info().Msg("Server exited gracefully")
 	return nil
 }
 

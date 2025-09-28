@@ -8,7 +8,7 @@ import (
 	"gin/user-management-api/internal/repository"
 	"gin/user-management-api/internal/utils"
 	"gin/user-management-api/pkg/cache"
-	"log"
+	"gin/user-management-api/pkg/loggers"
 	"strings"
 	"time"
 
@@ -19,22 +19,19 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
 type userService struct {
 	repository repository.UserRepository
-	cache cache.RedisCacheService
+	cache      cache.RedisCacheService
 }
-
 
 func NewUserService(repository repository.UserRepository, redisClient *redis.Client) UserService {
 	return &userService{
 		repository: repository,
-		cache: cache.NewRedisCacheService(redisClient),
+		cache:      cache.NewRedisCacheService(redisClient),
 	}
 }
 
-
-func (us *userService) GetAllUsers(ctx *gin.Context, search, orderBy, sort string, page, limit int32, deleted bool) ([]sqlc.User, int32,error) {
+func (us *userService) GetAllUsers(ctx *gin.Context, search, orderBy, sort string, page, limit int32, deleted bool) ([]sqlc.User, int32, error) {
 	context := ctx.Request.Context()
 
 	if sort == "" {
@@ -46,7 +43,7 @@ func (us *userService) GetAllUsers(ctx *gin.Context, search, orderBy, sort strin
 	}
 
 	if page <= 0 {
-			page = 1
+		page = 1
 	}
 
 	if limit <= 0 {
@@ -55,13 +52,12 @@ func (us *userService) GetAllUsers(ctx *gin.Context, search, orderBy, sort strin
 	}
 	offset := (page - 1) * limit
 
-
 	//Get cache data
 	var cacheKey = us.generateCacheKey(search, orderBy, sort, page, limit, deleted)
 
 	var cacheData struct {
-		User []sqlc.User `json:"users"`
-		Total int32 `json:"total"`
+		User  []sqlc.User `json:"users"`
+		Total int32       `json:"total"`
 	}
 
 	if err := us.cache.Get(cacheKey, &cacheData); err == nil && cacheData.User != nil {
@@ -70,28 +66,27 @@ func (us *userService) GetAllUsers(ctx *gin.Context, search, orderBy, sort strin
 
 	users, err := us.repository.GetAllV2(context, search, orderBy, sort, limit, offset, deleted)
 	if err != nil {
-		return []sqlc.User{}, 0,utils.WrapError(utils.InternalServerError, "failed to get all user", err)
+		return []sqlc.User{}, 0, utils.WrapError(utils.InternalServerError, "failed to get all user", err)
 	}
 
 	total, err := us.repository.CountUsers(context, search, deleted)
 	if err != nil {
-		return []sqlc.User{}, 0,utils.WrapError(utils.InternalServerError, "failed to count user", err)
+		return []sqlc.User{}, 0, utils.WrapError(utils.InternalServerError, "failed to count user", err)
 	}
 
 	// Create cache data
 	cacheData = struct {
-		User []sqlc.User `json:"users"`
-		Total int32 `json:"total"`
-	} {
-		User: users,
+		User  []sqlc.User `json:"users"`
+		Total int32       `json:"total"`
+	}{
+		User:  users,
 		Total: int32(total),
 	}
 
-	us.cache.Set(cacheKey, cacheData, 5 * time.Minute)
+	us.cache.Set(cacheKey, cacheData, 5*time.Minute)
 
 	return users, int32(total), nil
 }
-
 
 func (us *userService) CreateUser(ctx *gin.Context, intUserParams sqlc.CreateUserParams) (sqlc.User, error) {
 	context := ctx.Request.Context()
@@ -106,7 +101,7 @@ func (us *userService) CreateUser(ctx *gin.Context, intUserParams sqlc.CreateUse
 
 	user, err := us.repository.Create(context, intUserParams)
 	if err != nil {
-		var pgErr * pgconn.PgError
+		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return sqlc.User{}, utils.NewError(utils.ConflictError, "Email already exitst")
 		}
@@ -115,7 +110,7 @@ func (us *userService) CreateUser(ctx *gin.Context, intUserParams sqlc.CreateUse
 	}
 
 	if err := us.cache.Clear("users:*"); err != nil {
-		log.Printf("Failed to clear cache: %v", err)
+		loggers.Log.Warn().Err(err).Msg("Failed to clear cache")
 	}
 
 	return user, nil
@@ -136,7 +131,7 @@ func (us *userService) GetUserByUUID(ctx *gin.Context, userUuid uuid.UUID) (sqlc
 func (us *userService) UpdateUser(ctx *gin.Context, userParams sqlc.UpdateUserByUuidParams) (sqlc.User, error) {
 	context := ctx.Request.Context()
 
-	if userParams.UserPassword != nil &&  *userParams.UserPassword != "" {
+	if userParams.UserPassword != nil && *userParams.UserPassword != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(*userParams.UserPassword), bcrypt.DefaultCost)
 		if err != nil {
 			return sqlc.User{}, utils.WrapError(utils.InternalServerError, "failed to hash password", err)
@@ -154,7 +149,7 @@ func (us *userService) UpdateUser(ctx *gin.Context, userParams sqlc.UpdateUserBy
 	}
 
 	if err := us.cache.Clear("users:*"); err != nil {
-		log.Printf("Failed to clear cache: %v", err)
+		loggers.Log.Warn().Err(err).Msg("Failed to clear cache")
 	}
 
 	return userUpdate, nil
@@ -170,7 +165,7 @@ func (us *userService) SoftDeleteUser(ctx *gin.Context, userUuid uuid.UUID) (sql
 		return sqlc.User{}, utils.NewError(utils.ConflictError, "failed to delete user")
 	}
 	if err := us.cache.Clear("users:*"); err != nil {
-		log.Printf("Failed to clear cache: %v", err)
+		loggers.Log.Warn().Err(err).Msg("Failed to clear cache")
 	}
 	return user, nil
 }
@@ -185,7 +180,7 @@ func (us *userService) RestoreUser(ctx *gin.Context, userUuid uuid.UUID) (sqlc.U
 		return sqlc.User{}, utils.NewError(utils.ConflictError, "failed to restore user")
 	}
 	if err := us.cache.Clear("users:*"); err != nil {
-		log.Printf("Failed to clear cache: %v", err)
+		loggers.Log.Warn().Err(err).Msg("Failed to clear cache")
 	}
 	return user, nil
 }
@@ -200,11 +195,10 @@ func (us *userService) DeleteUser(ctx *gin.Context, userUuid uuid.UUID) error {
 		return utils.NewError(utils.ConflictError, "failed to delete user")
 	}
 	if err := us.cache.Clear("users:*"); err != nil {
-		log.Printf("Failed to clear cache: %v", err)
+		loggers.Log.Warn().Err(err).Msg("Failed to clear cache")
 	}
 	return nil
 }
-
 
 func (us *userService) generateCacheKey(search, orderBy, sort string, page, limit int32, deleted bool) string {
 	search = strings.TrimSpace(search)
