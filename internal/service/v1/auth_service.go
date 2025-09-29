@@ -233,7 +233,7 @@ func (as *authService) RequestForgotPassword(ctx *gin.Context, email string) err
 		Text:    fmt.Sprintf("Hi %s, \n\n You requested to reset your password. Please click the link below to reset it: \n%s\n\n The link will expire in 1 hour. \n\n Best regard, \n Code With HuyDo", user.UserEmail, resetLink),
 	}
 
-	if err := as.mailService.SendMail(ctx, mailContent); err != nil {
+	if err := as.mailService.SendMail(context, mailContent); err != nil {
 		utils.NewError(utils.InternalServerError, "Failed to send password reset email")
 	}
 	return nil
