@@ -1,7 +1,6 @@
 package main
 
 import (
-	"gin/user-management-api/internal/app"
 	"gin/user-management-api/internal/config"
 	"gin/user-management-api/internal/utils"
 	"gin/user-management-api/pkg/loggers"
@@ -9,6 +8,10 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+func newWorker(cfb *config.Config) {
+
+}
 
 func main() {
 	rootDir := utils.MustGetWorkingDir()
@@ -28,20 +31,11 @@ func main() {
 	if err := godotenv.Load(filepath.Join(rootDir, ".env")); err != nil {
 		loggers.Log.Warn().Msg("No .env file found")
 	} else {
-		loggers.Log.Info().Msg("Load successfully .env in api")
+		loggers.Log.Info().Msg("Load successfully .env in worker")
 	}
 
 	// Initialize the configuration
 	config := config.NewConfig()
 
-	// Initialize application
-	application, err := app.NewApplication(config)
-	if err != nil {
-		loggers.Log.Error().Err(err).Msg("Failed to initialize application")
-	}
-
-	// Start server
-	if err := application.Run(); err != nil {
-		loggers.Log.Fatal().Err(err).Msg("Application run failed")
-	}
+	newWorker(config)
 }
