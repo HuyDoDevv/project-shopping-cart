@@ -60,13 +60,12 @@ func NewMailService(cfg *config.Config, logger *zerolog.Logger, providerFactory 
 func (ms *MaiService) SendMail(ctx context.Context, email *Email) error {
 	traceID := loggers.GetTraceID(ctx)
 	start_time := time.Now()
-
 	var lastErr error
 	for attempt := 1; attempt <= ms.config.MaxRetries; attempt++ {
 		startAttempt := time.Now()
 		err := ms.provider.SendMail(ctx, email)
 		if err == nil {
-			ms.logger.Error().Str("trace_id", traceID).
+			ms.logger.Info().Str("trace_id", traceID).
 				Dur("duration", time.Since(startAttempt)).
 				Str("operation", "send_mail").
 				Interface("to", email.To).

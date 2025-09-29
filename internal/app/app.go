@@ -12,6 +12,7 @@ import (
 	"gin/user-management-api/pkg/cache"
 	"gin/user-management-api/pkg/loggers"
 	"gin/user-management-api/pkg/mail"
+	"gin/user-management-api/pkg/rabbitmq"
 	"net/http"
 	"os"
 	"os/signal"
@@ -67,6 +68,12 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 		return nil, err
 	}
 
+	rabbitmqLogger := utils.NewLoggerWithPath("worker.log", "info")
+
+	rabbitmgService, _ := rabbitmq.NewRabbitMQService(
+		utils.GetEnv("RABBITMQURL", "amqp://guest:guest@rabbitmq:5672/"), rabbitmqLogger,
+	)
+
 	ctx := &MouldeContext{
 		DB:    db.DB,
 		Redis: redisClinet,
@@ -74,7 +81,7 @@ func NewApplication(cfg *config.Config) (*Application, error) {
 
 	models := []Module{
 		NewUserModule(ctx),
-		NewAuthModule(ctx, tokenService, cacheRedisService, mailService),
+		NewAuthModule(ctx, tokenService, cacheRedisService, mailService, rabbitmgService),
 	}
 
 	routes.RegisterRoutes(r, tokenService, cacheRedisService, getModlRoutes(models)...)

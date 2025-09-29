@@ -9,6 +9,7 @@ import (
 	"gin/user-management-api/pkg/cache"
 	"gin/user-management-api/pkg/loggers"
 	"gin/user-management-api/pkg/mail"
+	"gin/user-management-api/pkg/rabbitmq"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ type authService struct {
 	tokenService auth.TokenService
 	cacheService cache.RedisCacheService
 	mailService  mail.EmailProviderService
+	rabbitmq     rabbitmq.RabbitMQSerivce
 }
 
 type LoginAttempt struct {
@@ -39,12 +41,13 @@ var (
 	MaxLoginAttempt = 5
 )
 
-func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService, cacheService cache.RedisCacheService, mailService mail.EmailProviderService) *authService {
+func NewAuthService(repo repository.UserRepository, tokenService auth.TokenService, cacheService cache.RedisCacheService, mailService mail.EmailProviderService, rabbitmqService rabbitmq.RabbitMQSerivce) *authService {
 	return &authService{
 		userRepo:     repo,
 		tokenService: tokenService,
 		cacheService: cacheService,
 		mailService:  mailService,
+		rabbitmq:     rabbitmqService,
 	}
 }
 
@@ -233,9 +236,14 @@ func (as *authService) RequestForgotPassword(ctx *gin.Context, email string) err
 		Text:    fmt.Sprintf("Hi %s, \n\n You requested to reset your password. Please click the link below to reset it: \n%s\n\n The link will expire in 1 hour. \n\n Best regard, \n Code With HuyDo", user.UserEmail, resetLink),
 	}
 
-	if err := as.mailService.SendMail(context, mailContent); err != nil {
-		utils.NewError(utils.InternalServerError, "Failed to send password reset email")
+	if err := as.rabbitmq.Publish(context, "auth_email_queue", mailContent); err != nil {
+		return utils.NewError(utils.InternalServerError, "Failed to send password reset email")
 	}
+
+	// if err := as.mailService.SendMail(context, mailContent); err != nil {
+	// 	utils.NewError(utils.InternalServerError, "Failed to send password reset email")
+	// }
+
 	return nil
 }
 
